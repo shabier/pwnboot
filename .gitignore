@@ -1,0 +1,31 @@
+# Build artifacts
+build/
+*.o
+*.tmp
+*.log
+
+# Toolchain artifacts
+sdks/
+ipsws/
+*.ipsw
+*.dmg
+*.img3
+*.bin
+*.macho
+
+# Compiled binaries (rebuild from source)
+tools/lc_main_to_unixthread
+tools/umount
+tools/start.o
+
+# Personal / forensic outputs (never commit)
+*.plist
+keybag*
+*partition*
+data/
+extracted/
+
+# OS junk
+.DS_Store
+*.swp
+__pycache__/
