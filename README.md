@@ -33,7 +33,8 @@ This repo is the workaround. You build a working armv7 iOS 5 compatible binary o
 ## Documentation
 
 - [`docs/case-study.md`](docs/case-study.md) — the full recovery walkthrough, phase by phase, including all the dead ends.
-- [`docs/pipeline.md`](docs/pipeline.md) — howto for someone running this against their own device. Covers the DFU dance, the split-machine pipeline, and the data-partition dump.
+- [`docs/pipeline.md`](docs/pipeline.md) — howto for someone running this against their own device. Covers the DFU dance, the split-machine pipeline, the data-partition dump, and the offline decryption.
+- [`docs/lockout-reset.md`](docs/lockout-reset.md) — clear the "iPod is disabled" state on a pre-A7 device with a plist edit. No iTunes restore, no data loss.
 - [`docs/caveats.md`](docs/caveats.md) — every dead end I hit, ranked by how much time it cost. Save yourself the trouble.
 
 ## Builds on

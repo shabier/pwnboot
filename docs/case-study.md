@@ -368,14 +368,40 @@ Streamed the 30 GB partition through iproxy plus SSH (`-c aes128-ctr -o Compress
 
 Final piece: `emf_decrypter.py` from `iphone-dataprotection/python_scripts/`, run with the captured `.img` and the keybag plist. Produces a fully-decrypted directory tree mirroring the iPod's `/private/var`.
 
+## Phase 14: getting back into the iPod (next day)
+
+Phase 13 produced the PIN, all class keys, and an offline-decryptable raw partition image. The device itself was still locked at the "iPod is disabled" screen because the bruteforce ran the failed-attempts counter past 10. Standard answer to that state is "restore via iTunes," which wipes the device. I wanted neither.
+
+Came back the next day to clear the lockout state non-destructively.
+
+The mechanism is a plist edit, not a crypto thing. iOS 4 and iOS 5 don't have a Secure Enclave (that came with A7 / iPhone 5s in 2013), so the failed-attempts counter is just a SpringBoard preference. Three keys in `/var/mobile/Library/Preferences/com.apple.springboard.plist`:
+
+- `SBDeviceLockFailedAttempts` (int)
+- `SBDeviceLockBlocked` (bool)
+- `SBDeviceLockBlockTimeIntervalSinceReferenceDate` (real)
+
+The plist is `NSFileProtectionNone` (class 4) because it has to be readable at boot before any PIN is entered. So no class keys, no encryption to deal with. Plain rw mount, edit, write back.
+
+Procedure:
+
+1. Boot the SSH ramdisk again. Same dance as before, about 15 minutes since the patched kernelcache was already cached at `~/Legacy-iOS-Kit/saved/iPod3,1/ramdisk_9B206/kernelcache.release.n18`.
+2. `/bin/mount.sh` mounts `/mnt2` rw by default.
+3. SCP the plist out, three lines of Python `plistlib` to delete the three keys, SCP back.
+4. `mount -u -o ro /mnt2` to flush the HFS+ journal (no `sync` in the busybox ramdisk).
+5. Power-cycle the iPod.
+
+iOS booted, SpringBoard read the cleaned plist, presented the standard "Enter passcode" UI. Entered the recovered PIN. In.
+
+Full howto in `docs/lockout-reset.md`.
+
 ## Outcome
 
 - ~302 MB of immediately-readable user data captured during phase 8
 - 24 GB tarball of the rest of `/private/var` from phase 8
 - 30 GB raw data-partition image from phase 13, decryptable offline with the saved keybag plist plus `emf_decrypter.py`
-- iPod's flash never modified. The device is in exactly the state it started in (locked, still PIN-protected at the lock screen). A power-cycle returns it to its pre-recovery state, no traces of the SSH ramdisk
+- The device is fully functional again, lockout cleared, recovered PIN entered at the lock screen. Recovery itself never touched on-device flash. The lockout fix in phase 14 modified only three plist preference keys, no firmware or system files
 
-End-to-end session time: ~7 to 8 hours, most of it spent navigating dead ends (USB / cable / AMD / QEMU / macOS Python). The actual cryptographic work (pwn DFU, patch kernelcache, run bruteforce) totals maybe 20 minutes of compute and a few dozen lines of new code.
+End-to-end across two sessions: about 9 hours total, most of it spent navigating dead ends (USB / cable / AMD / QEMU / macOS Python). The actual cryptographic work (pwn DFU, patch kernelcache, run bruteforce) totals maybe 20 minutes of compute and a few dozen lines of new code.
 
 ## What I'd do differently
 

@@ -208,7 +208,48 @@ sshpass -p alpine ssh -p 6414 \
 # 30 GB partition, ~3 MB/s through iproxy/SSH = 2.5 to 3 hours
 ```
 
-Then run Sogeti's offline `emf_decrypter.py` with the keybag plist plus this image to decrypt every file.
+### Decrypt the dump offline
+
+`emf_decrypter.py` is Python 2.7. Modern distros don't ship Python 2 (see caveats.md #15). Easiest path is a docker container. Save as `Dockerfile`:
+
+```dockerfile
+FROM python:2.7-alpine
+RUN apk add --no-cache git build-base
+RUN pip install pycrypto==2.6.1 construct==2.5.3 progressbar==2.5
+RUN git clone https://github.com/dinosec/iphone-dataprotection /opt/dataprotection
+WORKDIR /opt/dataprotection/python_scripts
+```
+
+```sh
+docker build -t emf-decrypt .
+```
+
+`emf_decrypter` modifies the input image in place. Make a copy first if you want to keep the encrypted original around:
+
+```sh
+cp data-partition.img data-partition.work.img
+```
+
+Run:
+
+```sh
+echo '' | docker run --rm -i \
+  -v "$PWD":/data emf-decrypt \
+  python emf_decrypter.py /data/data-partition.work.img /data/keybag-with-passcode.plist
+```
+
+The `echo '' |` answers the "Press a key to continue" prompt. Output ends with `Decrypted N files / Failed to unwrap keys for : [] / Not encrypted files : M`. If the unwrap-failures list is empty, every CP-tagged file decrypted cleanly.
+
+### Mount the result
+
+After decryption, the protect flag is cleared on every file. Linux's stock `hfsplus` driver reads the image without any iOS-specific support:
+
+```sh
+sudo mkdir -p /mnt/decrypted
+sudo mount -t hfsplus -o loop,ro data-partition.work.img /mnt/decrypted
+```
+
+Walk the tree, pull what you need with rsync or tar.
 
 ## Recovery from various breakages
 

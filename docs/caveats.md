@@ -141,3 +141,30 @@ ImportError: ... Symbol not found: _XML_SetAllocTrackerActivationThreshold
 Workaround: use Apple's bundled `/usr/bin/python3` (3.9.6). Older but matches the OS's libexpat exactly. `pip install --user pyusb` works fine.
 
 Don't try to `install_name_tool` the Homebrew Python's pyexpat to point at brew's libexpat. Invalidates the code signature, brew might overwrite, etc. Just use Apple Python.
+
+## 15. Sogeti's Python tools need Python 2.7, which modern distros don't ship
+
+`emf_decrypter.py`, `keychain_tool.py`, and the rest of `iphone-dataprotection/python_scripts/` are Python 2.7 (`print` statements, `plistlib.readPlist`, etc.). Modern Linux distributions don't have a `python2` package in their official repos.
+
+Tried:
+
+| Approach | Outcome |
+|---|---|
+| AUR `python2` on Arch | Builds from source. Needs sudo. About 15 minutes. Pollutes the system with openssl-1.1, etc. |
+| `pyenv install 2.7.18` | Same source build, same time, same pollution |
+| `docker python:2.7-slim` (Debian buster) | apt-get fails: buster moved to archive.debian.org and the default mirrors return 404 |
+| `docker python:2.7-alpine` | Works. Small, fast, no system impact |
+
+Working recipe. Save as `Dockerfile`:
+
+```dockerfile
+FROM python:2.7-alpine
+RUN apk add --no-cache git build-base
+RUN pip install pycrypto==2.6.1 construct==2.5.3 progressbar==2.5
+RUN git clone https://github.com/dinosec/iphone-dataprotection /opt/dataprotection
+WORKDIR /opt/dataprotection/python_scripts
+```
+
+Add `pyasn1==0.4.8` to the `pip install` line if you also need `keychain_tool.py` (it parses X.509 from stored identities).
+
+`pycrypto` is unmaintained, but its 2.6.1 wheel still installs from PyPI and Sogeti only uses the AES + SHA primitives, both stable since 2013.
